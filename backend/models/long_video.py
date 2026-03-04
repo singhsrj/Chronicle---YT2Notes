@@ -11,6 +11,7 @@ class LongVideoRequest(BaseModel):
     chunk_seconds: int = 300  # 5 minutes default
     model_name: Literal["tiny", "base", "small", "medium", "large-v2", "large-v3"] = "base"
     language: Optional[str] = "en"  # Auto-detect if None
+    session_id: Optional[str] = None  # Optional: use existing session ID instead of generating new one
 
 
 class TranscriptSegment(BaseModel):

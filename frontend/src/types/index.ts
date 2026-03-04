@@ -25,6 +25,7 @@ export interface TranscribeRequest {
   chunk_seconds?: number;
   model_name?: 'tiny' | 'base' | 'small' | 'medium' | 'large-v2' | 'large-v3';
   language?: string;
+  session_id?: string;  // Optional: use existing session ID
 }
 
 export interface TranscribeResponse {
@@ -80,4 +81,18 @@ export interface OllamaStatus {
   ollama_status: 'running' | 'offline' | 'unreachable';
   models?: unknown;
   detail?: string;
+}
+
+// Session-based notes types
+export interface BackendSession {
+  session_id: string;
+  video_url: string;
+  total_segments?: number;
+  total_duration?: number;
+  status?: string;
+  progress_percentage?: number;
+}
+
+export interface BackendSessionsResponse {
+  sessions: BackendSession[];
 }

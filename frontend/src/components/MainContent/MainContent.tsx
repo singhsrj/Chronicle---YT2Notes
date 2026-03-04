@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Youtube, Play, FileText, Loader2, Copy, Check, RefreshCw } from 'lucide-react';
+import { Youtube, Play, FileText, Loader2, Copy, Check, RefreshCw, Hash } from 'lucide-react';
 import { NotesRenderer } from '../NotesRenderer';
 import { useSession } from '../../context';
 import { useTranscription, useNotesGeneration } from '../../hooks';
 import './MainContent.css';
 
+type InputMode = 'youtube' | 'session';
+
 export function MainContent() {
   const { getActiveSession, updateSession } = useSession();
   const { startTranscription, isProcessing: isTranscribing, error: transcriptionError } = useTranscription();
-  const { generateNotes, isGenerating, streamedNotes, error: notesError } = useNotesGeneration();
+  const { generateNotes, generateNotesFromBackendSession, isGenerating, streamedNotes, error: notesError } = useNotesGeneration();
   
   const [videoUrl, setVideoUrl] = useState('');
+  const [backendSessionId, setBackendSessionId] = useState('');
+  const [inputMode, setInputMode] = useState<InputMode>('youtube');
   const [activeTab, setActiveTab] = useState<'transcript' | 'notes'>('transcript');
   const [copied, setCopied] = useState(false);
 
@@ -57,6 +61,17 @@ export function MainContent() {
     setActiveTab('notes');
   };
 
+  const handleGenerateNotesFromSession = async () => {
+    if (!backendSessionId.trim()) return;
+    
+    updateSession(session.id, { 
+      title: `Session: ${backendSessionId.slice(0, 8)}...`
+    });
+    
+    await generateNotesFromBackendSession(session.id, backendSessionId, session.title);
+    setActiveTab('notes');
+  };
+
   const handleCopy = async (text: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -67,38 +82,91 @@ export function MainContent() {
     return url.includes('youtube.com') || url.includes('youtu.be');
   };
 
+  const isValidSessionId = (id: string) => {
+    // UUID format validation
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim());
+  };
+
   return (
     <main className="main-content">
-      {/* URL Input Section */}
+      {/* Input Mode Toggle */}
       <section className="url-section">
-        <div className="url-input-wrapper">
-          <Youtube className="url-icon" size={20} />
-          <input
-            type="text"
-            className="url-input"
-            placeholder="Paste YouTube URL here..."
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            disabled={isTranscribing}
-          />
+        <div className="input-mode-toggle">
           <button
-            className="transcribe-btn"
-            onClick={handleStartTranscription}
-            disabled={!isValidYoutubeUrl(videoUrl) || isTranscribing}
+            className={`mode-btn ${inputMode === 'youtube' ? 'active' : ''}`}
+            onClick={() => setInputMode('youtube')}
           >
-            {isTranscribing ? (
-              <>
-                <Loader2 className="spinning" size={18} />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>
-                <Play size={18} />
-                <span>Transcribe</span>
-              </>
-            )}
+            <Youtube size={16} />
+            YouTube URL
+          </button>
+          <button
+            className={`mode-btn ${inputMode === 'session' ? 'active' : ''}`}
+            onClick={() => setInputMode('session')}
+          >
+            <Hash size={16} />
+            Session ID
           </button>
         </div>
+
+        {inputMode === 'youtube' ? (
+          <div className="url-input-wrapper">
+            <Youtube className="url-icon" size={20} />
+            <input
+              type="text"
+              className="url-input"
+              placeholder="Paste YouTube URL here..."
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              disabled={isTranscribing}
+            />
+            <button
+              className="transcribe-btn"
+              onClick={handleStartTranscription}
+              disabled={!isValidYoutubeUrl(videoUrl) || isTranscribing}
+            >
+              {isTranscribing ? (
+                <>
+                  <Loader2 className="spinning" size={18} />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Play size={18} />
+                  <span>Transcribe</span>
+                </>
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="url-input-wrapper">
+            <Hash className="url-icon" size={20} />
+            <input
+              type="text"
+              className="url-input"
+              placeholder="Paste existing session ID (e.g., abc123-def456-...)"
+              value={backendSessionId}
+              onChange={(e) => setBackendSessionId(e.target.value)}
+              disabled={isGenerating}
+            />
+            <button
+              className="transcribe-btn"
+              onClick={handleGenerateNotesFromSession}
+              disabled={!isValidSessionId(backendSessionId) || isGenerating}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="spinning" size={18} />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <FileText size={18} />
+                  <span>Generate Notes</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
         
         {transcriptionError && (
           <div className="error-message">{transcriptionError}</div>

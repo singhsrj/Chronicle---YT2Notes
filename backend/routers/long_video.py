@@ -52,9 +52,10 @@ async def start_transcription(
     - **chunk_seconds**: Size of each chunk in seconds (default: 300)
     - **model_name**: Whisper model to use (tiny, base, small, medium, large-v2, large-v3)
     - **language**: Language code for transcription (default: "en", None for auto-detect)
+    - **session_id**: Optional existing session ID to use (for resuming or re-processing)
     """
-    # Generate session ID
-    session_id = str(uuid.uuid4())
+    # Use provided session ID or generate a new one
+    session_id = request.session_id if request.session_id else str(uuid.uuid4())
     
     # Initialize checkpoint
     service.update_status(

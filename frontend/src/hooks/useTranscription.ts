@@ -133,8 +133,58 @@ export function useNotesGeneration() {
     }
   }, [updateSession]);
 
+  /**
+   * Generate notes from an existing backend session ID.
+   * This fetches the transcript from the backend and generates notes.
+   */
+  const generateNotesFromBackendSession = useCallback(async (
+    frontendSessionId: string,
+    backendSessionId: string,
+    title?: string
+  ) => {
+    setIsGenerating(true);
+    setStreamedNotes('');
+    setError(null);
+
+    let accumulatedNotes = '';
+
+    try {
+      updateSession(frontendSessionId, { status: 'generating_notes' });
+
+      // Try streaming first, fall back to regular if not available
+      try {
+        for await (const chunk of notesApi.generateNotesFromSessionStream(backendSessionId, title)) {
+          accumulatedNotes += chunk;
+          setStreamedNotes(accumulatedNotes);
+        }
+      } catch {
+        // Fall back to non-streaming
+        const response = await notesApi.generateNotesFromSession(backendSessionId, title);
+        if (response.status === 'ok' && response.notes) {
+          accumulatedNotes = response.notes;
+          setStreamedNotes(accumulatedNotes);
+        } else {
+          throw new Error(response.error || 'Failed to generate notes from session');
+        }
+      }
+
+      // Save final notes
+      updateSession(frontendSessionId, {
+        notes: accumulatedNotes,
+        status: 'completed',
+      });
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate notes');
+      updateSession(frontendSessionId, { status: 'error' });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [updateSession]);
+
   return {
     generateNotes,
+    generateNotesFromBackendSession,
     isGenerating,
     streamedNotes,
     error,

@@ -4,6 +4,8 @@ FastAPI router for transcript-to-notes generation.
 Endpoints:
   POST /notes/from-json  — accepts JSON body { "transcript": "...", "title": "..." }
   POST /notes/from-txt   — accepts a raw .txt file upload
+  POST /notes/from-session/{session_id} — generate notes from existing session transcript
+  POST /notes/from-session/{session_id}/stream — streaming version
   GET  /notes/health     — checks if Ollama is reachable
 
 Mount in main.py with:
@@ -20,6 +22,10 @@ from typing import Optional
 
 from backend.models.notes import TranscriptInput, NotesResponse
 from backend.services.notes_service import generate_notes, generate_notes_stream
+from backend.services.long_video_service import LongVideoTranscriptionService
+
+# Session service for loading transcripts
+_session_service = LongVideoTranscriptionService()
 
 # ─────────────────────────────────────────────
 # Router setup — prefix & tags are set in main.py
@@ -251,3 +257,180 @@ async def notes_stream(payload: TranscriptInput):
             "Connection": "keep-alive",
         }
     )
+
+
+# ─────────────────────────────────────────────
+# ENDPOINT 5 — Generate notes from existing session
+# ─────────────────────────────────────────────
+@router.post("/from-session/{session_id}", response_model=NotesResponse)
+def notes_from_session(
+    session_id: str,
+    title: Optional[str] = None
+):
+    """
+    Generate notes from an existing transcription session.
+    
+    This allows users to generate notes from a previously transcribed video
+    by providing the session_id that was returned after transcription.
+    
+    Path parameters:
+        - session_id: The session ID returned from the transcription process
+    
+    Query parameters:
+        - title: Optional custom title (defaults to video URL from session)
+    
+    Returns:
+        NotesResponse with markdown notes.
+    
+    React fetch example:
+        const res = await fetch(`http://localhost:8000/notes/from-session/${sessionId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+        const data = await res.json();
+        setNotes(data.notes);
+    """
+    # Check if session exists and is completed
+    checkpoint = _session_service.get_status(session_id)
+    
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+    
+    if checkpoint.get("status") != "completed":
+        status = checkpoint.get("status", "unknown")
+        if status == "error":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Session '{session_id}' failed with error: {checkpoint.get('error', 'Unknown error')}"
+            )
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Session '{session_id}' is not completed yet. Current status: {status}"
+        )
+    
+    # Load transcript
+    result = _session_service.get_result(session_id)
+    
+    if not result:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Transcript result not found for session '{session_id}'"
+        )
+    
+    transcript = result.get("full_text", "")
+    
+    if not transcript.strip():
+        raise HTTPException(status_code=422, detail="Session transcript is empty.")
+    
+    # Use provided title or fallback to video URL
+    final_title = title or checkpoint.get("video_url", "Untitled Video")
+    
+    notes_result = generate_notes(transcript=transcript, title=final_title)
+    
+    if notes_result.status == "error":
+        raise HTTPException(status_code=503, detail=notes_result.error)
+    
+    return notes_result
+
+
+@router.post("/from-session/{session_id}/stream")
+def notes_from_session_stream(
+    session_id: str,
+    title: Optional[str] = None
+):
+    """
+    Generate notes from an existing transcription session with streaming response.
+    
+    Same as /from-session/{session_id} but returns a streaming response
+    for real-time token display.
+    
+    Path parameters:
+        - session_id: The session ID returned from the transcription process
+    
+    Query parameters:
+        - title: Optional custom title (defaults to video URL from session)
+    
+    Returns:
+        StreamingResponse with text chunks as they're generated.
+    """
+    # Check if session exists and is completed
+    checkpoint = _session_service.get_status(session_id)
+    
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+    
+    if checkpoint.get("status") != "completed":
+        status = checkpoint.get("status", "unknown")
+        if status == "error":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Session '{session_id}' failed with error: {checkpoint.get('error', 'Unknown error')}"
+            )
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Session '{session_id}' is not completed yet. Current status: {status}"
+        )
+    
+    # Load transcript
+    result = _session_service.get_result(session_id)
+    
+    if not result:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Transcript result not found for session '{session_id}'"
+        )
+    
+    transcript = result.get("full_text", "")
+    
+    if not transcript.strip():
+        raise HTTPException(status_code=422, detail="Session transcript is empty.")
+    
+    # Use provided title or fallback to video URL
+    final_title = title or checkpoint.get("video_url", "Untitled Video")
+    
+    def stream_generator():
+        for chunk in generate_notes_stream(transcript=transcript, title=final_title):
+            yield chunk
+    
+    return StreamingResponse(
+        stream_generator(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+@router.get("/sessions")
+def list_available_sessions():
+    """
+    List all completed transcription sessions that can be used to generate notes.
+    
+    Returns a list of sessions with their IDs, status, and video URLs.
+    Only returns sessions with status 'completed'.
+    
+    React fetch example:
+        const res = await fetch("http://localhost:8000/notes/sessions");
+        const data = await res.json();
+        // data.sessions is array of { session_id, video_url, total_segments }
+    """
+    sessions_dir = _session_service.base_dir
+    
+    if not sessions_dir.exists():
+        return {"sessions": []}
+    
+    completed_sessions = []
+    for session_dir in sessions_dir.iterdir():
+        if session_dir.is_dir():
+            session_id = session_dir.name
+            checkpoint = _session_service.get_status(session_id)
+            if checkpoint and checkpoint.get("status") == "completed":
+                completed_sessions.append({
+                    "session_id": session_id,
+                    "video_url": checkpoint.get("video_url", ""),
+                    "total_segments": checkpoint.get("total_segments", 0),
+                    "total_duration": checkpoint.get("total_duration", 0)
+                })
+    
+    return {"sessions": completed_sessions}
