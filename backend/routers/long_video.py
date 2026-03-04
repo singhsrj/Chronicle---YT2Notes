@@ -7,13 +7,13 @@ from fastapi.responses import FileResponse
 import uuid
 from pathlib import Path
 
-from models.long_video import (
+from backend.models.long_video import (
     LongVideoRequest,
     LongVideoStatus,
     TranscriptionResult,
     TranscriptionProgress
 )
-from services.long_video_service import LongVideoTranscriptionService
+from backend.services.long_video_service import LongVideoTranscriptionService
 
 router = APIRouter()
 service = LongVideoTranscriptionService()

@@ -1,0 +1,121 @@
+/* ═══════════════════════════════════════════════════════
+   Chronicle - Dark Purple Theme
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* Base colors */
+  --bg-main: #0a0a0f;
+  --bg-sidebar: #0d0d14;
+  --bg-card: #12121a;
+  --bg-elevated: #1a1a24;
+  --bg-hover: #1f1f2e;
+  --bg-input: #16161f;
+  
+  /* Text colors */
+  --text-primary: #f0f0f5;
+  --text-secondary: #a8a8b8;
+  --text-muted: #6b6b7b;
+  
+  /* Accent colors - Purple theme */
+  --accent-primary: #8b5cf6;
+  --accent-secondary: #a78bfa;
+  --accent-hover: #7c3aed;
+  --accent-subtle: rgba(139, 92, 246, 0.1);
+  --accent-border: rgba(139, 92, 246, 0.3);
+  
+  /* Border */
+  --border-color: #2a2a3a;
+  
+  /* Status colors */
+  --success: #22c55e;
+  --success-subtle: rgba(34, 197, 94, 0.1);
+  --error: #ef4444;
+  --error-subtle: rgba(239, 68, 68, 0.1);
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  
+  /* Misc */
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --radius: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CSS Reset
+   ═══════════════════════════════════════════════════════ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Scrollbar Styles
+   ═══════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Selection
+   ═══════════════════════════════════════════════════════ */
+
+::selection {
+  background: var(--accent-primary);
+  color: white;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Focus styles
+   ═══════════════════════════════════════════════════════ */
+
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   App Layout
+   ═══════════════════════════════════════════════════════ */
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}

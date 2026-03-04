@@ -5,9 +5,10 @@ Long Video Transcription API
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+#backend is not defined
 
-from routers import long_video
-
+from backend.routers import long_video
+from backend.routers.notes import router as notes_router
 app = FastAPI(
     title="YT Notes - Long Video Transcription API",
     description="YouTube long video transcription with chunking, checkpoints, and faster-whisper",
@@ -30,23 +31,17 @@ app.include_router(
     tags=["Long Video Transcription"]
 )
 
+app.include_router(
+    notes_router, 
+    prefix="/notes", 
+    tags=["Notes"]
+)
+
 
 @app.get("/")
 async def root():
     """API root endpoint."""
-    return {
-        "message": "YT Notes Long Video Transcription API",
-        "version": "1.0.0",
-        "endpoints": {
-            "transcribe": "POST /api/long-video/transcribe",
-            "status": "GET /api/long-video/status/{session_id}",
-            "result": "GET /api/long-video/result/{session_id}",
-            "download_text": "GET /api/long-video/download/text/{session_id}",
-            "download_json": "GET /api/long-video/download/json/{session_id}",
-            "sessions": "GET /api/long-video/sessions",
-            "delete": "DELETE /api/long-video/session/{session_id}"
-        }
-    }
+    return {"message": "YT-to-Notes API is running"}
 
 
 @app.get("/health")
