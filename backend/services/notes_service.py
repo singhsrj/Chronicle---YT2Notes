@@ -13,68 +13,50 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5:7b"  # Change to any model you have pulled locally
 
 # ─────────────────────────────────────────────
-# NOTES STRUCTURE TEMPLATE
-# This XML-like structure is injected into the system prompt so the LLM
-# always follows the same skeleton — increases determinism significantly.
-# ─────────────────────────────────────────────
-NOTES_STRUCTURE = """
-<notes_structure>
-  <section name="Video Overview">
-    One-paragraph summary of what the video covers and its main purpose.
-  </section>
-
-  <section name="Key Topics">
-    A bullet list of the main topics/concepts discussed in order.
-  </section>
-
-  <section name="Detailed Notes">
-    For each key topic:
-    - ### Topic Name
-    - Clear explanation of the concept
-    - Sub-bullets for supporting details, examples, or nuances
-    - **Bold** any critical terms or definitions
-  </section>
-
-  <section name="Important Definitions">
-    A glossary-style list of technical terms mentioned:
-    - **Term**: definition
-  </section>
-
-  <section name="Key Takeaways">
-    3–7 concise bullet points summarising the most important lessons.
-  </section>
-
-  <section name="Action Items / Next Steps" optional="true">
-    If the video suggests things to do or learn next, list them here.
-    Omit this section entirely if not applicable.
-  </section>
-</notes_structure>
-"""
-
-# ─────────────────────────────────────────────
 # SYSTEM PROMPT
-# Combines role, task instructions, and the enforced structure template.
+# Clean markdown output without XML tags
 # ─────────────────────────────────────────────
-SYSTEM_PROMPT = f"""You are an expert note-taker specialising in creating comprehensive, \
-well-structured study notes from video transcripts.
+SYSTEM_PROMPT = """You are an expert note-taker who creates comprehensive, well-structured study notes from video transcripts.
 
-## Your Task
-Analyse the provided transcript and produce detailed notes that strictly follow \
-the structure template below. Do NOT invent information — only use content \
-present in the transcript.
+## Instructions
+1. Output ONLY clean Markdown - NO XML tags, NO wrapper tags, NO <section> tags
+2. Use proper Markdown headings (##, ###), bullet points, and formatting
+3. Do NOT invent information - only use content from the transcript
+4. Bold (**) key terms and definitions when first introduced
+5. Use LaTeX math notation with $ for inline and $$ for block equations when needed
+6. Keep language clear, concise, and educational
 
-## Rules
-1. Always output valid Markdown.
-2. Follow the <notes_structure> sections in the exact order shown.
-3. Use `###` for topic headings inside "Detailed Notes".
-4. Bold (**) all key terms the first time they appear.
-5. Keep language clear, concise, and accurate.
-6. If a section is marked optional="true" and has no relevant content, skip it completely.
-7. Do not add any preamble or closing remarks outside the structure.
+## Output Format (use these exact headings):
 
-## Output Structure
-{NOTES_STRUCTURE}
-"""
+## Video Overview
+Write a clear paragraph summarizing what the video covers and its main purpose.
+
+## Key Topics
+- List the main topics/concepts discussed
+- In order of appearance
+
+## Detailed Notes
+
+### [Topic Name]
+- Clear explanation of the concept
+- Supporting details and examples
+- **Bold** critical terms
+
+(Repeat for each major topic)
+
+## Important Definitions
+- **Term**: definition
+- **Another term**: its definition
+
+## Key Takeaways
+- 3-7 bullet points summarizing the most important lessons
+- Focus on actionable insights
+
+## Next Steps (optional)
+- Only include if the video suggests things to do or learn next
+- Omit this section entirely if not applicable
+
+Remember: Output clean, readable Markdown only. No XML. No wrapper tags. Start directly with "## Video Overview"."""
 
 
 def generate_notes(transcript: str, title: str = "Untitled Video") -> NotesResponse:
