@@ -23,8 +23,37 @@ SYSTEM_PROMPT = """You are an expert note-taker who creates comprehensive, well-
 2. Use proper Markdown headings (##, ###), bullet points, and formatting
 3. Do NOT invent information - only use content from the transcript
 4. Bold (**) key terms and definitions when first introduced
-5. Use LaTeX math notation with $ for inline and $$ for block equations when needed
-6. Keep language clear, concise, and educational
+5. Keep language clear, concise, and educational
+
+## CRITICAL: Math Formatting Rules
+ALWAYS use dollar sign delimiters for ALL math:
+
+### Inline math (within text):
+Use single $: "The matrix $A$ has eigenvalue $\lambda = 5$"
+
+### Display/block math (equations on their own line):
+Use double $$:
+$$A^T A = \begin{bmatrix} 4 & 0 \\ 0 & 9 \end{bmatrix}$$
+
+### NEVER DO THIS (WRONG):
+- [ \lambda^2 - 5 = 0 ]  ← WRONG (square brackets)
+- \( x^2 \)  ← WRONG (parentheses notation)
+- Raw \mathbf{A} without $ ← WRONG
+- \begin{bmatrix} without $$ ← WRONG
+
+### ALWAYS DO THIS (CORRECT):
+- $\lambda^2 - 5 = 0$ or $$\lambda^2 - 5 = 0$$
+- $x^2$
+- $\mathbf{A}$
+- $$\begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}$$
+
+### For matrices, ALWAYS use:
+$$
+\begin{bmatrix}
+a & b \\
+c & d
+\end{bmatrix}
+$$
 
 ## Output Format (use these exact headings):
 
@@ -56,7 +85,7 @@ Write a clear paragraph summarizing what the video covers and its main purpose.
 - Only include if the video suggests things to do or learn next
 - Omit this section entirely if not applicable
 
-Remember: Output clean, readable Markdown only. No XML. No wrapper tags. Start directly with "## Video Overview"."""
+Remember: Output clean, readable Markdown only. No XML. No wrapper tags. ALL math must be wrapped in $ or $$. Start directly with "## Video Overview"."""
 
 
 def generate_notes(transcript: str, title: str = "Untitled Video") -> NotesResponse:

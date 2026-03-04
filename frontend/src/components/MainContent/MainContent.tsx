@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Youtube, Play, FileText, Loader2, Copy, Check, RefreshCw } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { NotesRenderer } from '../NotesRenderer';
 import { useSession } from '../../context';
 import { useTranscription, useNotesGeneration } from '../../hooks';
 import './MainContent.css';
@@ -177,7 +177,7 @@ export function MainContent() {
                 {session.transcript || 'No transcript yet. Start by transcribing a video.'}
               </div>
             ) : (
-              <div className="notes-content markdown">
+              <div className="notes-content">
                 {isGenerating && !displayNotes && (
                   <div className="generating-placeholder">
                     <Loader2 className="spinning" size={24} />
@@ -185,14 +185,11 @@ export function MainContent() {
                   </div>
                 )}
                 {displayNotes ? (
-                  <ReactMarkdown>{displayNotes}</ReactMarkdown>
+                  <NotesRenderer content={displayNotes} isStreaming={isGenerating} />
                 ) : (
                   <p className="no-notes">
                     No notes generated yet. Click "Generate Notes" after transcription.
                   </p>
-                )}
-                {isGenerating && displayNotes && (
-                  <span className="cursor-blink">▊</span>
                 )}
               </div>
             )}
