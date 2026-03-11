@@ -57,11 +57,11 @@ docker-compose up --build
 
 ### Access the Application
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| **Frontend** | http://localhost:3000 | Main application UI |
-| **Backend API** | http://localhost:8000 | REST API |
-| **API Documentation** | http://localhost:8000/docs | Interactive Swagger docs |
+| Service | Description |
+|---------|-------------|
+| **Frontend** | Main application UI |
+| **Backend API** | REST API |
+| **API Documentation** | Interactive Swagger docs |
 
 ### Docker Configuration Options
 
@@ -247,12 +247,6 @@ VIDEO_ID (bare video ID)
 | **Brief** | Summary + 5 key points |
 | **Detailed** | Summary, 10 key points, concepts, timeline |
 | **Comprehensive** | All 6 types: summary, key points, concepts, timeline, quotes, action items |
-
-### Interactive Chat
-1. Select any text in the Notes panel
-2. Type your question in the chat input
-3. AI responds with context-aware answers
-4. View all conversation threads in the Threads tab
 
 ---
 
