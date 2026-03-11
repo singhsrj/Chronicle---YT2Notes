@@ -1,0 +1,58 @@
+# Chronicle - YT to Notes
+# Docker Compose Configuration
+#
+# Prerequisites:
+#   1. Ollama running on your host machine (ollama serve)
+#   2. Required model pulled (ollama pull llama2:7b)
+#
+# Usage:
+#   docker-compose up --build
+#
+# Access:
+#   Frontend: http://localhost:3000
+#   Backend API: http://localhost:8000
+#   API Docs: http://localhost:8000/docs
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: singhsrj08/chronicle-backend:latest
+    container_name: chronicle-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Points to Ollama on the host machine
+      # Use host.docker.internal on Windows/Mac
+      # Use 172.17.0.1 on Linux (or set OLLAMA_HOST env var)
+      - OLLAMA_BASE_URL=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2:7b}
+    volumes:
+      # Persist transcription sessions
+      - ./sessions:/app/sessions
+    extra_hosts:
+      # Required for Linux to access host services
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: singhsrj08/chronicle-frontend:latest
+    container_name: chronicle-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# Optional: Named volume for sessions if you prefer
+# volumes:
+#   sessions-data:

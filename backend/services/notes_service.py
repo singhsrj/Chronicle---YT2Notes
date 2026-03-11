@@ -1,18 +1,44 @@
 """
 Service layer for notes generation.
-Handles all communication with the local Ollama instance.
+Handles all communication with the local Ollama instance using LangChain for structured interactions.
 """
 
-import requests
-import json
-from typing import Generator, List
+import os
+from typing import Generator, List, AsyncGenerator
 from backend.models.notes import NotesResponse
 
+# LangChain imports for structured LLM interactions
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import SystemMessage, HumanMessage
+
 # ─────────────────────────────────────────────
-# OLLAMA CONFIG
+# OLLAMA CONFIG (configurable via environment variables)
 # ─────────────────────────────────────────────
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "qwen2.5:7b"  # Change to any model you have pulled locally
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama2:7b")
+
+# ─────────────────────────────────────────────
+# LLM CONFIGURATION
+# ─────────────────────────────────────────────
+# Initialize the LangChain ChatOllama client with optimal settings
+llm = ChatOllama(
+    model=OLLAMA_MODEL,
+    base_url=OLLAMA_BASE_URL,
+    temperature=0.3,
+    top_p=0.9,
+    repeat_penalty=1.1,
+)
+
+# For streaming responses
+llm_streaming = ChatOllama(
+    model=OLLAMA_MODEL,
+    base_url=OLLAMA_BASE_URL,
+    temperature=0.3,
+    top_p=0.9,
+    repeat_penalty=1.1,
+)
 
 # ─────────────────────────────────────────────
 # CHUNKING CONFIG FOR 32K CONTEXT WINDOW
@@ -43,7 +69,7 @@ CHUNK_OVERLAP_CHARS = 500  # Small overlap for context continuity
 
 # SYSTEM_PROMPT_FULL: Used when the entire transcript fits in one chunk.
 # This is the standard prompt with full structure: Overview → Topics → Notes → Definitions → Takeaways
-SYSTEM_PROMPT_FULL = """You are an expert note-taker who creates comprehensive, well-structured study notes from video transcripts.
+SYSTEM_PROMPT_FULL = """You are an expert note-taker who creates comprehensive, well-structured study notes from video transcripts in English Only.
 
 ## Instructions
 1. Output ONLY clean Markdown - NO XML tags, NO wrapper tags, NO <section> tags
@@ -60,26 +86,26 @@ Use single $: "The matrix $A$ has eigenvalue $\lambda = 5$"
 
 ### Display/block math (equations on their own line):
 Use double $$:
-$$A^T A = \\begin{bmatrix} 4 & 0 \\\\ 0 & 9 \\end{bmatrix}$$
+$$A^T A = \\begin{{bmatrix}} 4 & 0 \\\\ 0 & 9 \\end{{bmatrix}}$$
 
 ### NEVER DO THIS (WRONG):
 - [ \\lambda^2 - 5 = 0 ]  ← WRONG (square brackets)
 - \\( x^2 \\)  ← WRONG (parentheses notation)
-- Raw \\mathbf{A} without $ ← WRONG
-- \\begin{bmatrix} without $$ ← WRONG
+- Raw \\mathbf{{A}} without $ ← WRONG
+- \\begin{{bmatrix}} without $$ ← WRONG
 
 ### ALWAYS DO THIS (CORRECT):
 - $\\lambda^2 - 5 = 0$ or $$\\lambda^2 - 5 = 0$$
 - $x^2$
-- $\\mathbf{A}$
-- $$\\begin{bmatrix} 1 & 2 \\\\ 3 & 4 \\end{bmatrix}$$
+- $\\mathbf{{A}}$
+- $$\\begin{{bmatrix}} 1 & 2 \\\\ 3 & 4 \\end{{bmatrix}}$$
 
 ### For matrices, ALWAYS use:
 $$
-\\begin{bmatrix}
+\\begin{{bmatrix}}
 a & b \\\\
 c & d
-\\end{bmatrix}
+\\end{{bmatrix}}
 $$
 
 ## Output Format (use these exact headings):
@@ -118,7 +144,7 @@ Remember: Output clean, readable Markdown only. No XML. No wrapper tags. ALL mat
 # SYSTEM_PROMPT_FIRST_CHUNK: Used for the FIRST part of a multi-chunk transcript.
 # Writes: Video Overview + Key Topics + Detailed Notes (partial)
 # Does NOT write: Definitions, Key Takeaways, Conclusion (saved for final chunk)
-SYSTEM_PROMPT_FIRST_CHUNK = """You are an expert note-taker creating notes from a LONG video transcript that has been split into multiple parts.
+SYSTEM_PROMPT_FIRST_CHUNK = """You are an expert note-taker creating notes from a LONG video transcript that has been split into multiple parts in English Only.
 
 THIS IS PART 1 OF THE TRANSCRIPT. More parts will follow.
 
@@ -141,7 +167,7 @@ Just document the content from this portion and STOP. The summary will come at t
 ## CRITICAL: Math Formatting Rules
 ALWAYS use dollar sign delimiters for ALL math:
 - Inline: $x^2$ or $\\lambda$
-- Block: $$\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}$$
+- Block: $$\\begin{{bmatrix}} a & b \\\\ c & d \\end{{bmatrix}}$$
 
 ## Output Format for this chunk:
 
@@ -163,7 +189,7 @@ Start directly with "## Video Overview"."""
 # SYSTEM_PROMPT_MIDDLE_CHUNK: Used for MIDDLE parts of a multi-chunk transcript (not first, not last).
 # Writes: Continued Detailed Notes only (### Topic headings)
 # Does NOT write: Overview (already done), Definitions, Key Takeaways, Conclusion (saved for final)
-SYSTEM_PROMPT_MIDDLE_CHUNK = """You are an expert note-taker continuing to document a LONG video transcript.
+SYSTEM_PROMPT_MIDDLE_CHUNK = """You are an expert note-taker continuing to document a LONG video transcript in English Only.
 
 THIS IS A CONTINUATION. You are receiving the next part of the transcript.
 
@@ -184,7 +210,7 @@ Since this is a middle portion of the transcript:
 ## CRITICAL: Math Formatting Rules
 ALWAYS use dollar sign delimiters for ALL math:
 - Inline: $x^2$ or $\\lambda$
-- Block: $$\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}$$
+- Block: $$\\begin{{bmatrix}} a & b \\\\ c & d \\end{{bmatrix}}$$
 
 ## Output Format for this chunk (continue directly):
 
@@ -200,7 +226,7 @@ Start directly with ### and continue the notes."""
 # SYSTEM_PROMPT_FINAL_CHUNK: Used for the LAST part of a multi-chunk transcript.
 # Writes: Remaining Detailed Notes + Important Definitions + Key Takeaways + Next Steps
 # This is where all the summary/conclusion content goes for multi-chunk transcripts.
-SYSTEM_PROMPT_FINAL_CHUNK = """You are an expert note-taker completing the documentation of a LONG video transcript.
+SYSTEM_PROMPT_FINAL_CHUNK = """You are an expert note-taker completing the documentation of a LONG video transcript in English Only.
 
 THIS IS THE FINAL PART of the transcript. Now you should conclude the notes.
 
@@ -214,7 +240,7 @@ THIS IS THE FINAL PART of the transcript. Now you should conclude the notes.
 ## CRITICAL: Math Formatting Rules
 ALWAYS use dollar sign delimiters for ALL math:
 - Inline: $x^2$ or $\\lambda$
-- Block: $$\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}$$
+- Block: $$\\begin{{bmatrix}} a & b \\\\ c & d \\end{{bmatrix}}$$
 
 ## Output Format for this FINAL chunk:
 
@@ -232,6 +258,80 @@ ALWAYS use dollar sign delimiters for ALL math:
 - Only include if the video suggests things to do or learn next
 
 Start directly with ### to continue any remaining topics, then conclude with the summary sections."""
+
+
+# ─────────────────────────────────────────────
+# LANGCHAIN PROMPT TEMPLATES
+# ─────────────────────────────────────────────
+# Structured prompt templates using LangChain's ChatPromptTemplate
+# These provide a well-rounded, consistent interface for LLM interactions
+
+def create_notes_prompt_template(system_prompt: str) -> ChatPromptTemplate:
+    """
+    Factory function to create a ChatPromptTemplate with the given system prompt.
+    
+    Args:
+        system_prompt: The system prompt defining the LLM's behavior
+        
+    Returns:
+        ChatPromptTemplate configured for notes generation
+    """
+    return ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("human", "{user_input}")
+    ])
+
+
+# Pre-built prompt templates for each chunk type
+PROMPT_TEMPLATE_FULL = create_notes_prompt_template(SYSTEM_PROMPT_FULL)
+PROMPT_TEMPLATE_FIRST_CHUNK = create_notes_prompt_template(SYSTEM_PROMPT_FIRST_CHUNK)
+PROMPT_TEMPLATE_MIDDLE_CHUNK = create_notes_prompt_template(SYSTEM_PROMPT_MIDDLE_CHUNK)
+PROMPT_TEMPLATE_FINAL_CHUNK = create_notes_prompt_template(SYSTEM_PROMPT_FINAL_CHUNK)
+
+
+# ─────────────────────────────────────────────
+# LANGCHAIN CHAINS (LCEL - LangChain Expression Language)
+# ─────────────────────────────────────────────
+# Chains compose prompt templates with LLM and output parsers
+# Using the | operator for clean, functional composition
+
+# Output parser to extract string content from LLM response
+output_parser = StrOutputParser()
+
+# Pre-built chains for each chunk type (prompt | llm | parser)
+CHAIN_FULL = PROMPT_TEMPLATE_FULL | llm | output_parser
+CHAIN_FIRST_CHUNK = PROMPT_TEMPLATE_FIRST_CHUNK | llm | output_parser
+CHAIN_MIDDLE_CHUNK = PROMPT_TEMPLATE_MIDDLE_CHUNK | llm | output_parser
+CHAIN_FINAL_CHUNK = PROMPT_TEMPLATE_FINAL_CHUNK | llm | output_parser
+
+# Streaming chains (same structure, but invoke differently)
+CHAIN_FULL_STREAM = PROMPT_TEMPLATE_FULL | llm_streaming
+CHAIN_FIRST_CHUNK_STREAM = PROMPT_TEMPLATE_FIRST_CHUNK | llm_streaming
+CHAIN_MIDDLE_CHUNK_STREAM = PROMPT_TEMPLATE_MIDDLE_CHUNK | llm_streaming
+CHAIN_FINAL_CHUNK_STREAM = PROMPT_TEMPLATE_FINAL_CHUNK | llm_streaming
+
+
+def get_chain_for_chunk(chunk_index: int, total_chunks: int, streaming: bool = False):
+    """
+    Get the appropriate chain based on chunk position.
+    
+    Args:
+        chunk_index: 0-based index of current chunk
+        total_chunks: Total number of chunks
+        streaming: Whether to return streaming chain
+        
+    Returns:
+        Appropriate LangChain chain
+    """
+    if total_chunks == 1:
+        return CHAIN_FULL_STREAM if streaming else CHAIN_FULL
+    
+    if chunk_index == 0:
+        return CHAIN_FIRST_CHUNK_STREAM if streaming else CHAIN_FIRST_CHUNK
+    elif chunk_index == total_chunks - 1:
+        return CHAIN_FINAL_CHUNK_STREAM if streaming else CHAIN_FINAL_CHUNK
+    else:
+        return CHAIN_MIDDLE_CHUNK_STREAM if streaming else CHAIN_MIDDLE_CHUNK
 
 
 def split_transcript_into_chunks(transcript: str) -> List[str]:
@@ -299,8 +399,13 @@ def get_system_prompt_for_chunk(chunk_index: int, total_chunks: int) -> str:
 
 def generate_notes(transcript: str, title: str = "Untitled Video") -> NotesResponse:
     """
-    Sends the transcript to the local Ollama model and returns structured notes.
+    Sends the transcript to the local Ollama model using LangChain and returns structured notes.
     Automatically splits long transcripts into chunks that fit within the context window.
+
+    Uses LangChain's LCEL (LangChain Expression Language) for clean, composable chains:
+    - ChatPromptTemplate for structured prompts
+    - ChatOllama for LLM interaction
+    - StrOutputParser for output parsing
 
     Args:
         transcript: Raw transcript text (plain text or JSON-extracted text).
@@ -318,51 +423,26 @@ def generate_notes(transcript: str, title: str = "Untitled Video") -> NotesRespo
     all_notes = []
     
     for i, chunk in enumerate(chunks):
-        system_prompt = get_system_prompt_for_chunk(i, total_chunks)
+        # Get the appropriate chain for this chunk position
+        chain = get_chain_for_chunk(i, total_chunks, streaming=False)
         
-        # Build the user prompt
+        # Build the user input for the prompt template
         if total_chunks == 1:
-            user_prompt = f"Video Title: {title}\n\n---\n\nTranscript:\n{chunk}"
+            user_input = f"Video Title: {title}\n\n---\n\nTranscript:\n{chunk}"
         elif i == 0:
-            user_prompt = f"Video Title: {title}\n\n---\n\nTranscript (Part 1 of {total_chunks}):\n{chunk}"
+            user_input = f"Video Title: {title}\n\n---\n\nTranscript (Part 1 of {total_chunks}):\n{chunk}"
         else:
-            user_prompt = f"Continuing transcript (Part {i + 1} of {total_chunks}):\n{chunk}"
-
-        payload = {
-            "model": OLLAMA_MODEL,
-            "system": system_prompt,
-            "prompt": user_prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.3,
-                "top_p": 0.9,
-                "repeat_penalty": 1.1,
-            }
-        }
+            user_input = f"Continuing transcript (Part {i + 1} of {total_chunks}):\n{chunk}"
 
         try:
-            print(f"[Notes] Processing chunk {i + 1}/{total_chunks}...")
-            response = requests.post(
-                OLLAMA_URL,
-                headers={"Content-Type": "application/json"},
-                json=payload,
-                timeout=300
-            )
+            print(f"[Notes] Processing chunk {i + 1}/{total_chunks} via LangChain...")
+            
+            # Invoke the chain with structured input
+            # The chain handles: prompt formatting -> LLM call -> output parsing
+            notes_text = chain.invoke({"user_input": user_input})
+            all_notes.append(notes_text.strip())
 
-            if response.status_code == 200:
-                result = response.json()
-                notes_text = result.get("response", "").strip()
-                all_notes.append(notes_text)
-            else:
-                return NotesResponse(
-                    title=title,
-                    notes="",
-                    model_used=OLLAMA_MODEL,
-                    status="error",
-                    error=f"Ollama returned status {response.status_code} on chunk {i + 1}: {response.text}"
-                )
-
-        except requests.exceptions.ConnectionError:
+        except ConnectionError:
             return NotesResponse(
                 title=title,
                 notes="",
@@ -370,7 +450,7 @@ def generate_notes(transcript: str, title: str = "Untitled Video") -> NotesRespo
                 status="error",
                 error="Could not connect to Ollama. Is it running? Try: ollama serve"
             )
-        except requests.exceptions.Timeout:
+        except TimeoutError:
             return NotesResponse(
                 title=title,
                 notes="",
@@ -400,8 +480,13 @@ def generate_notes(transcript: str, title: str = "Untitled Video") -> NotesRespo
 
 def generate_notes_stream(transcript: str, title: str = "Untitled Video") -> Generator[str, None, None]:
     """
-    Generator that streams notes from Ollama token by token.
+    Generator that streams notes from Ollama using LangChain's streaming interface.
     Automatically splits long transcripts into chunks that fit within the context window.
+    
+    Uses LangChain's streaming capabilities for real-time token generation:
+    - ChatPromptTemplate for structured prompts
+    - ChatOllama with streaming enabled
+    - Yields tokens as they are generated
     
     Yields:
         str: Each chunk of text as it's generated.
@@ -413,59 +498,39 @@ def generate_notes_stream(transcript: str, title: str = "Untitled Video") -> Gen
     print(f"[Notes Stream] Transcript length: {len(transcript)} chars, split into {total_chunks} chunk(s)")
     
     for i, chunk in enumerate(chunks):
-        system_prompt = get_system_prompt_for_chunk(i, total_chunks)
+        # Get the appropriate streaming chain for this chunk position
+        chain = get_chain_for_chunk(i, total_chunks, streaming=True)
         
-        # Build the user prompt
+        # Build the user input for the prompt template
         if total_chunks == 1:
-            user_prompt = f"Video Title: {title}\n\n---\n\nTranscript:\n{chunk}"
+            user_input = f"Video Title: {title}\n\n---\n\nTranscript:\n{chunk}"
         elif i == 0:
-            user_prompt = f"Video Title: {title}\n\n---\n\nTranscript (Part 1 of {total_chunks}):\n{chunk}"
+            user_input = f"Video Title: {title}\n\n---\n\nTranscript (Part 1 of {total_chunks}):\n{chunk}"
         else:
-            user_prompt = f"Continuing transcript (Part {i + 1} of {total_chunks}):\n{chunk}"
-
-        payload = {
-            "model": OLLAMA_MODEL,
-            "system": system_prompt,
-            "prompt": user_prompt,
-            "stream": True,
-            "options": {
-                "temperature": 0.3,
-                "top_p": 0.9,
-                "repeat_penalty": 1.1,
-            }
-        }
+            user_input = f"Continuing transcript (Part {i + 1} of {total_chunks}):\n{chunk}"
 
         # Add separator between chunks (except first)
         if i > 0:
             yield "\n\n"
-            print(f"[Notes Stream] Processing chunk {i + 1}/{total_chunks}...")
+            print(f"[Notes Stream] Processing chunk {i + 1}/{total_chunks} via LangChain...")
 
         try:
-            with requests.post(
-                OLLAMA_URL,
-                headers={"Content-Type": "application/json"},
-                json=payload,
-                stream=True,
-                timeout=300
-            ) as response:
-                if response.status_code != 200:
-                    yield f"[ERROR] Ollama returned status {response.status_code} on chunk {i + 1}"
-                    return
+            # Stream tokens from the chain
+            # LangChain's .stream() method yields AIMessageChunks
+            for message_chunk in chain.stream({"user_input": user_input}):
+                # Extract content from the AIMessageChunk
+                if hasattr(message_chunk, 'content'):
+                    text_chunk = message_chunk.content
+                else:
+                    text_chunk = str(message_chunk)
+                    
+                if text_chunk:
+                    yield text_chunk
 
-                for line in response.iter_lines():
-                    if line:
-                        try:
-                            data = json.loads(line)
-                            text_chunk = data.get("response", "")
-                            if text_chunk:
-                                yield text_chunk
-                        except json.JSONDecodeError:
-                            continue
-
-        except requests.exceptions.ConnectionError:
+        except ConnectionError:
             yield "[ERROR] Could not connect to Ollama. Is it running?"
             return
-        except requests.exceptions.Timeout:
+        except TimeoutError:
             yield f"[ERROR] Ollama request timed out on chunk {i + 1}."
             return
         except Exception as e:

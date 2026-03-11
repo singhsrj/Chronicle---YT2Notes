@@ -1,0 +1,38 @@
+# Chronicle - YT to Notes
+# User docker-compose file (pulls from Docker Hub)
+#
+# Usage:
+#   1. Make sure Ollama is running with a model: ollama pull llama2:7b && ollama serve
+#   2. Run: docker-compose -f docker-compose.hub.yml up
+#   3. Open: http://localhost:3000
+#
+# GitHub: https://github.com/singhsrj/Chronicle---YT2Notes
+
+services:
+  backend:
+    image: singhsrj08/chronicle-backend:latest
+    container_name: chronicle-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Windows/Mac: host.docker.internal works
+      # Linux: Change to http://172.17.0.1:11434 or your host IP
+      - OLLAMA_BASE_URL=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2:7b}
+    volumes:
+      - chronicle-sessions:/app/sessions
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    image: singhsrj08/chronicle-frontend:latest
+    container_name: chronicle-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  chronicle-sessions:

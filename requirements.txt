@@ -5,3 +5,10 @@ python-dotenv>=1.0.0
 yt-dlp>=2024.6.0
 faster-whisper
 pydantic>=2.0.0,<3.0.0
+python-multipart>=0.0.6
+
+# LangChain for structured LLM interactions
+langchain
+langchain-ollama 
+langgraph 
+langchain-core

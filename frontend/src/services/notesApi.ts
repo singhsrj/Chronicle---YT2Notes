@@ -1,6 +1,7 @@
 import { NotesRequest, NotesResponse, OllamaStatus, BackendSessionsResponse } from '../types';
 
-const API_BASE = 'http://localhost:8000';
+// Use empty string for Docker (nginx proxy), localhost for local dev
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
 
 export const notesApi = {
   /**

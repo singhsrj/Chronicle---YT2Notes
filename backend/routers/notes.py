@@ -13,6 +13,7 @@ Mount in main.py with:
     app.include_router(notes_router, prefix="/notes", tags=["Notes"])
 """
 
+import os
 import json
 import requests
 
@@ -28,11 +29,15 @@ from backend.services.long_video_service import LongVideoTranscriptionService
 _session_service = LongVideoTranscriptionService()
 
 # ─────────────────────────────────────────────
+# Ollama configuration (from environment)
+# ─────────────────────────────────────────────
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_HEALTH_URL = f"{OLLAMA_BASE_URL}/v1/models"
+
+# ─────────────────────────────────────────────
 # Router setup — prefix & tags are set in main.py
 # ─────────────────────────────────────────────
 router = APIRouter()
-
-OLLAMA_HEALTH_URL = "http://localhost:11434/v1/models"
 
 
 # ─────────────────────────────────────────────
@@ -50,7 +55,7 @@ def health_check():
             return {"ollama_status": "running", "models": resp.json()}
         return {"ollama_status": "unreachable", "detail": resp.text}
     except requests.exceptions.ConnectionError:
-        return {"ollama_status": "offline", "detail": "Could not connect to localhost:11434"}
+        return {"ollama_status": "offline", "detail": f"Could not connect to {OLLAMA_BASE_URL}"}
 
 
 # ─────────────────────────────────────────────
