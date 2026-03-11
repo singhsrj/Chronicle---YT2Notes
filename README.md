@@ -1,155 +1,221 @@
-# ◈ YT Notes
+<div align="center">
 
-> Transform YouTube videos into structured, interactive knowledge — powered by local LLMs and faster-whisper.
+# 📺 Chronicle — YouTube to Notes
+
+**Transform any YouTube video into structured, AI-powered notes with a single click**
+
+[![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=black)](https://reactjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-black?logo=ollama)](https://ollama.com)
+
+[Quick Start](#-quick-start-with-docker) • [Features](#-features) • [Tech Stack](#-tech-stack) • [Architecture](#-architecture) • [API Docs](#-api-reference)
+
+</div>
 
 ---
 
-## **NEW: Long Video Transcription API** 🎉
+## 🎯 What is Chronicle?
 
-Transcribe videos of any length with chunked processing, checkpoints, and progress tracking!
+Chronicle is a **full-stack AI application** that converts YouTube videos into interactive, structured notes using local LLMs. Simply paste a video URL, and Chronicle handles transcription, summarization, and note generation—all running locally on your machine with no API costs.
+
+### Key Highlights
+
+- 🎬 **Video Processing** — Supports any YouTube video format (standard, shorts, embeds)
+- 🤖 **Local AI** — Uses Ollama for privacy-first, cost-free LLM inference
+- ⚡ **Long Video Support** — Chunked transcription with checkpoints for videos of any length
+- 💬 **Interactive Chat** — Ask follow-up questions on any section of your notes
+- 📤 **Export Ready** — Download as Markdown or JSON for Obsidian, Notion, etc.
+
+---
+
+## 🚀 Quick Start with Docker
+
+Get Chronicle running in **under 2 minutes** with Docker:
+
+### Prerequisites
+
+1. **[Docker Desktop](https://docker.com/products/docker-desktop)** installed and running
+2. **[Ollama](https://ollama.com)** installed with a model pulled:
+   ```bash
+   ollama pull llama2:7b   # or any preferred model
+   ollama serve            # ensure Ollama is running
+   ```
+
+### One-Command Setup
 
 ```bash
-# Start the API server
-cd backend
-python main.py
+# Clone the repository
+git clone https://github.com/singhsrj/Chronicle---YT2Notes.git
+cd Chronicle---YT2Notes
 
-# Test with a video
-python test_client.py test https://www.youtube.com/watch?v=VIDEO_ID
+# Start with Docker Compose
+docker-compose up --build
 ```
 
-See [backend/README.md](backend/README.md) for complete API documentation.
+### Access the Application
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Frontend** | http://localhost:3000 | Main application UI |
+| **Backend API** | http://localhost:8000 | REST API |
+| **API Documentation** | http://localhost:8000/docs | Interactive Swagger docs |
+
+### Docker Configuration Options
+
+```bash
+# Use a different Ollama model
+OLLAMA_MODEL=qwen2.5:7b docker-compose up --build
+
+# Run in background (detached mode)
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+```
+
+> 📖 For detailed Docker configuration (Linux setup, troubleshooting), see [DOCKER.md](DOCKER.md)
 
 ---
 
-## Architecture Overview
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| **Smart Transcription** | Automatic YouTube transcript extraction with multi-language support |
+| **AI Note Generation** | Choose from Brief, Detailed, or Comprehensive note formats |
+| **Context-Aware Chat** | Select any text and ask questions—AI understands the context |
+| **Threaded Conversations** | Each question creates a sub-thread for organized discussions |
+| **Checkpoint System** | Resume long video transcriptions from where you left off |
+| **Multi-Format Export** | Export notes as Markdown (for Obsidian/Notion) or JSON |
+| **Real-Time Progress** | Live status updates during ingestion and note generation |
+
+---
+
+## 🛠 Tech Stack
+
+### Backend
+| Technology | Purpose |
+|------------|---------|
+| **FastAPI** | High-performance async REST API framework |
+| **LangChain + LangGraph** | LLM orchestration and structured outputs |
+| **Ollama** | Local LLM inference (Llama, Mistral, Qwen) |
+| **faster-whisper** | High-speed audio transcription |
+| **yt-dlp** | YouTube video/audio extraction |
+| **Pydantic** | Data validation and serialization |
+
+### Frontend
+| Technology | Purpose |
+|------------|---------|
+| **React 18** | Component-based UI library |
+| **TypeScript** | Type-safe JavaScript |
+| **Vite** | Lightning-fast build tooling |
+| **CSS Modules** | Scoped component styling |
+
+### Infrastructure
+| Technology | Purpose |
+|------------|---------|
+| **Docker + Docker Compose** | Containerized deployment |
+| **Nginx** | Production-ready frontend serving |
+| **GitHub Actions** | CI/CD pipeline (optional) |
+
+---
+
+## 🏗 Architecture
 
 ```
-yt-notes/
-├── backend/                  # FastAPI — modular, async
-│   ├── main.py               # App entrypoint, CORS, router mounting
-│   ├── config.py             # All settings (env-driven)
-│   ├── models/
-│   │   └── long_video.py     # Long video transcription models
-│   ├── routers/
-│   │   ├── ingest.py         # POST /api/ingest — YouTube URL → session
-│   │   ├── notes.py          # POST /api/notes/generate — LLM notes
-│   │   ├── chat.py           # POST /api/chat — streaming SSE chat
-│   │   ├── export.py         # GET /api/export/{json|markdown}
-│   │   └── long_video.py     # POST /api/long-video/transcribe — long video pipeline
-│   └── services/
-│       ├── ingestion.py      # URL parsing + transcript + metadata
-│       ├── llm.py            # All prompts, Ollama calls, streaming
-│       ├── storage.py        # JSON session persistence
-│       └── long_video_service.py # Chunked transcription with faster-whisper
+Chronicle/
+├── backend/                 # FastAPI Application
+│   ├── main.py              # Application entrypoint, CORS, router mounting
+│   ├── models/              # Pydantic schemas and data models
+│   ├── routers/             # API endpoint definitions
+│   │   ├── notes.py         # Note generation endpoints
+│   │   └── long_video.py    # Long video transcription pipeline
+│   └── services/            # Business logic layer
+│       ├── notes_service.py # LLM-powered note generation
+│       └── long_video_service.py # Chunked transcription with checkpoints
 │
-├── services/                 # Standalone services
-│   ├── long_video_pipeline.py # CLI tool for long video transcription
-│   ├── yt_to_mp3.py          # YouTube to MP3 downloader
-│   └── get_transcribe.py     # Simple transcript fetcher
-│
-├── frontend/                 # React + Vite + TypeScript
+├── frontend/                # React + TypeScript Application
 │   └── src/
-│       ├── App.tsx           # Full UI (single-component)
-│       └── services/api.ts   # All backend calls
+│       ├── components/      # Reusable UI components
+│       ├── services/        # API client layer
+│       ├── hooks/           # Custom React hooks
+│       └── context/         # Global state management
 │
-└── ollama/
-    └── Modelfile             # Custom yt-notes model definition
+├── docker-compose.yml       # Multi-container orchestration
+└── tests/                   # API test suite
 ```
 
 ### Data Flow
 
 ```
-User pastes URL
-    → POST /api/ingest        (background task)
-    → YouTube oEmbed + youtube-transcript-api
-    → Session saved as JSON   (status: ready)
-
-User clicks "Generate Notes"
-    → POST /api/notes/generate (background task)
-    → Transcript → Ollama (structured JSON prompt)
-    → NoteBlocks parsed + saved to session
-
-User selects text → asks question
-    → POST /api/chat          (streaming SSE)
-    → Ollama streams tokens → frontend renders live
-    → Full response appended to ChatThread in session
+┌─────────────────────────────────────────────────────────────────┐
+│  User pastes YouTube URL                                        │
+│      ↓                                                          │
+│  POST /api/ingest → Extract transcript + metadata               │
+│      ↓                                                          │
+│  Session created (JSON persistence)                             │
+│      ↓                                                          │
+│  User clicks "Generate Notes"                                   │
+│      ↓                                                          │
+│  POST /api/notes/generate → LLM processes transcript            │
+│      ↓                                                          │
+│  Structured notes returned (summary, key points, timeline...)   │
+│      ↓                                                          │
+│  User selects text → POST /api/chat (streaming SSE)             │
+│      ↓                                                          │
+│  Real-time AI response rendered in UI                           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Prerequisites
+## 💻 Local Development Setup
+
+<details>
+<summary><strong>Click to expand manual setup instructions</strong></summary>
+
+### Prerequisites
 
 | Tool | Version | Install |
 |------|---------|---------|
-| Python | 3.11+ | python.org |
-| Node.js | 18+ | nodejs.org |
+| Python | 3.11+ | [python.org](https://python.org) |
+| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
 | Ollama | latest | [ollama.com](https://ollama.com) |
 
----
-
-## Setup
-
-### 1. Ollama — Build the custom model
+### 1. Setup Ollama
 
 ```bash
-# Pull base model (llama3.2 is recommended — change in Modelfile if preferred)
+# Pull your preferred model
 ollama pull llama3.2
 
-# Build the yt-notes model from Modelfile
+# Optional: Create a custom yt-notes model
 cd ollama/
 ollama create yt-notes -f ./Modelfile
-
-# Verify
-ollama list   # should show yt-notes
-ollama run yt-notes "Hello"
 ```
 
-**Swapping the base model:** Edit line 1 of `ollama/Modelfile`:
-```
-FROM llama3.2        # default
-FROM llama3.1:8b     # better quality, more RAM
-FROM mistral         # fast alternative
-FROM qwen2.5:7b      # strong multilingual
-```
-Then re-run `ollama create yt-notes -f ./Modelfile`.
-
----
-
-### 2. Backend
+### 2. Backend Setup
 
 ```bash
 cd backend/
 
-# Create venv
+# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 
-# Install deps
+# Install dependencies
 pip install -r requirements.txt
 
-# Configure (optional)
-cp .env.example .env
-# Edit .env to add YOUTUBE_API_KEY if you want rich metadata (duration, etc.)
-
-# Run
+# Run development server
 uvicorn main:app --reload --port 8000
 ```
 
-The API will be live at `http://localhost:8000`.
-Swagger docs: `http://localhost:8000/docs`
-
-**Environment variables (`.env`):**
-```env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=yt-notes
-YOUTUBE_API_KEY=           # optional — oEmbed fallback works without it
-DATA_DIR=./data
-SESSIONS_DIR=./data/sessions
-```
-
----
-
-### 3. Frontend
+### 3. Frontend Setup
 
 ```bash
 cd frontend/
@@ -157,147 +223,80 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open http://localhost:5173
+
+</details>
 
 ---
 
-## Usage
+## 📖 Usage Guide
 
-### Ingest a Video
-Paste any YouTube URL format into the sidebar input:
-- `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
-- `https://youtu.be/dQw4w9WgXcQ`
-- `https://www.youtube.com/shorts/dQw4w9WgXcQ`
-- `https://www.youtube.com/embed/dQw4w9WgXcQ`
-- `dQw4w9WgXcQ` (bare video ID)
+### Supported YouTube URL Formats
+```
+https://www.youtube.com/watch?v=VIDEO_ID
+https://youtu.be/VIDEO_ID
+https://www.youtube.com/shorts/VIDEO_ID
+https://www.youtube.com/embed/VIDEO_ID
+VIDEO_ID (bare video ID)
+```
 
-Click **Ingest** or press Enter. Status updates in real-time.
+### Note Generation Modes
 
-### Generate Notes
-Once ingested (status: `ready`), select note depth and click **Generate Notes**:
-- **Brief** — Summary + 5 key points
-- **Detailed** — Summary, key points (10), concepts, timeline
-- **Comprehensive** — All 6 note types (summary, key_points, concepts, timeline, quotes, action_items)
+| Mode | Output |
+|------|--------|
+| **Brief** | Summary + 5 key points |
+| **Detailed** | Summary, 10 key points, concepts, timeline |
+| **Comprehensive** | All 6 types: summary, key points, concepts, timeline, quotes, action items |
 
-### Inline Chat
-1. Select any text in the Notes panel (highlights trigger a reply box)
+### Interactive Chat
+1. Select any text in the Notes panel
 2. Type your question in the chat input
-3. The response appears as a **sub-thread** anchored to the selected passage
-4. Switch to the **Threads** tab to see all conversation threads
-5. Click any thread to continue it
-
-### Export
-- **↓ JSON** — Full session (video meta, transcript, notes, all threads)
-- **↓ MD** — Clean Markdown document for Obsidian, Notion, etc.
+3. AI responds with context-aware answers
+4. View all conversation threads in the Threads tab
 
 ---
 
-## API Reference
+## 📡 API Reference
 
-### Ingest
-```
-POST /api/ingest/
-Body: { "url": "...", "language": "en" }
-Returns: { "session_id": "...", "status": "ingesting" }
+### Core Endpoints
 
-GET /api/ingest/status/{session_id}
-Returns: { session_id, status, error, video_meta }
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/ingest/` | Ingest a YouTube video |
+| `POST` | `/api/notes/generate` | Generate AI notes |
+| `POST` | `/api/chat` | Streaming chat (SSE) |
+| `GET` | `/api/export/json` | Export session as JSON |
+| `GET` | `/api/export/markdown` | Export session as Markdown |
 
-### Notes
-```
-POST /api/notes/generate
-Body: { "session_id": "...", "depth": "detailed" }
+### Long Video Pipeline
 
-GET /api/notes/session/{session_id}    → full Session object
-GET /api/notes/sessions                → list of SessionSummary
-DELETE /api/notes/session/{session_id}
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/long-video/transcribe` | Start transcription |
+| `GET` | `/api/long-video/status/{session_id}` | Check progress |
+| `GET` | `/api/long-video/result/{session_id}` | Get transcript |
 
-### Chat
-```
-POST /api/chat/
-Body: { session_id, message, selected_text?, thread_id? }
-Returns: SSE stream → { token, thread_id } ... { done: true, thread_id }
-
-GET /api/chat/threads/{session_id}
-```
-
-### Export
-```
-GET /api/export/json/{session_id}      → .json download
-GET /api/export/markdown/{session_id}  → .md download
-```
+> 📖 Full API documentation available at http://localhost:8000/docs
 
 ---
 
-## Session JSON Schema
+## 🤝 Contributing
 
-```json
-{
-  "id": "uuid",
-  "created_at": "ISO datetime",
-  "video_meta": {
-    "video_id": "...", "title": "...", "channel": "...",
-    "duration_seconds": 0, "thumbnail_url": "..."
-  },
-  "transcript": [
-    { "start": 0.0, "duration": 2.5, "text": "Hello everyone..." }
-  ],
-  "notes": [
-    {
-      "type": "summary",
-      "title": "...",
-      "content": "markdown content",
-      "timestamp_refs": [0.0, 45.2]
-    }
-  ],
-  "threads": [
-    {
-      "id": "uuid",
-      "anchor_text": "the selected text",
-      "messages": [
-        { "id": "uuid", "role": "user", "content": "...", "selected_text": "..." },
-        { "id": "uuid", "role": "assistant", "content": "..." }
-      ]
-    }
-  ],
-  "status": "ready"
-}
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-## Customizing the LLM Behavior
+## 📄 License
 
-All prompt logic lives in `backend/services/llm.py`:
-
-- **`NOTES_SYSTEM_PROMPT`** — controls note generation personality and JSON contract
-- **`CHAT_SYSTEM_PROMPT`** — controls chat assistant behavior
-- **`DEPTH_INSTRUCTIONS`** — controls what note types are generated per depth level
-- **`NOTE_SCHEMA`** — JSON schema injected into the notes prompt
-- Sampling params (temperature, top_p, etc.) are in each function's `options` dict
-
-The `ollama/Modelfile` sets the model-level system prompt and sampling defaults. Changes there take effect after re-running `ollama create yt-notes -f ./Modelfile`.
+This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
-## Extending the System
+<div align="center">
 
-| Add this | Where |
-|----------|-------|
-| New note type | Add to `NoteBlock.type` enum in `models.py`, update `NOTE_SCHEMA` and `NOTE_ICONS`/`NOTE_COLORS` in `App.tsx` |
-| YouTube Data API rich metadata | Set `YOUTUBE_API_KEY` in `.env` |
-| Multiple language transcripts | Pass `language` param in ingest request |
-| PostgreSQL instead of JSON | Replace `services/storage.py` — interface stays the same |
-| Different LLM provider | Replace `services/llm.py` — routers don't change |
-| Authentication | Add FastAPI middleware in `main.py` |
+**Built with ❤️ by [Suraj Singh](https://github.com/singhsrj)**
 
----
-
-## Troubleshooting
-
-**"Could not fetch transcript"** — The video has transcripts disabled, is private, or is very new. Try a different video.
+</div>
 
 **Ollama connection refused** — Make sure Ollama is running: `ollama serve`
 
