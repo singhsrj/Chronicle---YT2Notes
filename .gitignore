@@ -13,6 +13,8 @@ venv/
 # Session data
 sessions/
 *.json
+!package.json
+!tsconfig.json
 *.txt
 !requirements.txt
 !README.md
