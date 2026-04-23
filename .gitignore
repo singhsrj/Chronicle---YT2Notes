@@ -9,7 +9,7 @@ dist/
 build/
 .venv/
 venv/
-
+chronicle_venv
 # Session data
 sessions/
 *.json
