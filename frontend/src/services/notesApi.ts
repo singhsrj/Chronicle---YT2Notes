@@ -33,12 +33,15 @@ export const notesApi = {
   /**
    * Generate notes from existing session ID (non-streaming)
    */
-  async generateNotesFromSession(sessionId: string, title?: string): Promise<NotesResponse> {
+  async generateNotesFromSession(sessionId: string, title?: string, detailLevel?: number): Promise<NotesResponse> {
     const url = new URL(`${API_BASE}/notes/from-session/${sessionId}`);
     if (title) {
       url.searchParams.set('title', title);
     }
-    
+    if (detailLevel !== undefined) {
+      url.searchParams.set('detail_level', String(detailLevel));
+    }
+
     const response = await fetch(url.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -55,10 +58,13 @@ export const notesApi = {
   /**
    * Generate notes from existing session with streaming support
    */
-  async *generateNotesFromSessionStream(sessionId: string, title?: string): AsyncGenerator<string, void, unknown> {
+  async *generateNotesFromSessionStream(sessionId: string, title?: string, detailLevel?: number): AsyncGenerator<string, void, unknown> {
     const url = new URL(`${API_BASE}/notes/from-session/${sessionId}/stream`);
     if (title) {
       url.searchParams.set('title', title);
+    }
+    if (detailLevel !== undefined) {
+      url.searchParams.set('detail_level', String(detailLevel));
     }
     
     const response = await fetch(url.toString(), {

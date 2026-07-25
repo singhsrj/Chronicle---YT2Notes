@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef } from 'react';
-import { transcriptionApi, notesApi } from '../services';
-import { useSession } from '../context';
-import { TranscriptionStatus } from '../types';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { transcriptionApi, notesApi } from '../../services';
+import { useSession } from '../SessionContext';
+import { TranscriptionStatus } from '../../types';
 
 export function useTranscription() {
   const { updateSession, getActiveSession } = useSession();
@@ -88,10 +88,25 @@ export function useNotesGeneration() {
   const [streamedNotes, setStreamedNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // Keep streamedNotes scoped to the session that owns it.
+  // When the active session changes, clear stale streamed notes from the previous session.
+  const { activeSessionId } = useSession();
+  const sessionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (sessionIdRef.current !== null && sessionIdRef.current !== activeSessionId) {
+      // Session changed — clear stale streamed notes from the previous session
+      setStreamedNotes('');
+      setError(null);
+    }
+    sessionIdRef.current = activeSessionId ?? null;
+  }, [activeSessionId]);
+
   const generateNotes = useCallback(async (
     sessionId: string,
     transcript: string,
-    title?: string
+    title?: string,
+    detailLevel: number = 5,
   ) => {
     setIsGenerating(true);
     setStreamedNotes('');
@@ -104,13 +119,13 @@ export function useNotesGeneration() {
 
       // Try streaming first, fall back to regular if not available
       try {
-        for await (const chunk of notesApi.generateNotesStream({ transcript, title })) {
+        for await (const chunk of notesApi.generateNotesStream({ transcript, title, detail_level: detailLevel })) {
           accumulatedNotes += chunk;
           setStreamedNotes(accumulatedNotes);
         }
       } catch {
         // Fall back to non-streaming
-        const response = await notesApi.generateNotes({ transcript, title });
+        const response = await notesApi.generateNotes({ transcript, title, detail_level: detailLevel });
         if (response.status === 'ok' && response.notes) {
           accumulatedNotes = response.notes;
           setStreamedNotes(accumulatedNotes);
@@ -140,7 +155,8 @@ export function useNotesGeneration() {
   const generateNotesFromBackendSession = useCallback(async (
     frontendSessionId: string,
     backendSessionId: string,
-    title?: string
+    title?: string,
+    detailLevel: number = 5,
   ) => {
     setIsGenerating(true);
     setStreamedNotes('');
@@ -153,13 +169,13 @@ export function useNotesGeneration() {
 
       // Try streaming first, fall back to regular if not available
       try {
-        for await (const chunk of notesApi.generateNotesFromSessionStream(backendSessionId, title)) {
+        for await (const chunk of notesApi.generateNotesFromSessionStream(backendSessionId, title, detailLevel)) {
           accumulatedNotes += chunk;
           setStreamedNotes(accumulatedNotes);
         }
       } catch {
         // Fall back to non-streaming
-        const response = await notesApi.generateNotesFromSession(backendSessionId, title);
+        const response = await notesApi.generateNotesFromSession(backendSessionId, title, detailLevel);
         if (response.status === 'ok' && response.notes) {
           accumulatedNotes = response.notes;
           setStreamedNotes(accumulatedNotes);

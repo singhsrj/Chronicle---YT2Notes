@@ -68,6 +68,7 @@ export interface TranscriptSegment {
 export interface NotesRequest {
   transcript: string;
   title?: string;
+  detail_level?: number; // 1-10, defaults to 5
 }
 
 export interface NotesResponse {
@@ -75,6 +76,8 @@ export interface NotesResponse {
   notes?: string;
   title?: string;
   error?: string;
+  detail_level?: number;
+  chunks_processed?: number;
 }
 
 export interface OllamaStatus {

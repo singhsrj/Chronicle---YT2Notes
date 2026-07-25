@@ -70,28 +70,23 @@ def notes_from_json(payload: TranscriptInput):
     Request body:
         {
             "transcript": "<raw transcript text>",
-            "title": "<optional video title>"   // optional, defaults to "Untitled Video"
+            "title": "<optional video title>",     // optional, defaults to "Untitled Video"
+            "detail_level": <1-10>                  // optional, defaults to 5
         }
 
     Returns:
         NotesResponse with markdown notes.
-
-    React fetch example:
-        const res = await fetch("http://localhost:8000/notes/from-json", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ transcript: text, title: videoTitle })
-        });
-        const data = await res.json();
-        setNotes(data.notes);
     """
     if not payload.transcript.strip():
         raise HTTPException(status_code=422, detail="Transcript cannot be empty.")
 
-    result = generate_notes(transcript=payload.transcript, title=payload.title)
+    result = generate_notes(
+        transcript=payload.transcript,
+        title=payload.title,
+        detail_level=payload.detail_level,
+    )
 
     if result.status == "error":
-        # Return 503 so the frontend can show a proper "service unavailable" message
         raise HTTPException(status_code=503, detail=result.error)
 
     return result
@@ -104,7 +99,8 @@ def notes_from_json(payload: TranscriptInput):
 @router.post("/from-txt", response_model=NotesResponse)
 async def notes_from_txt(
     file: UploadFile = File(..., description="Plain .txt transcript file"),
-    title: Optional[str] = Form(default="Untitled Video", description="Optional video title")
+    title: Optional[str] = Form(default="Untitled Video", description="Optional video title"),
+    detail_level: int = Form(default=5, ge=1, le=10, description="Detail level 1-10"),
 ):
     """
     Generate notes from an uploaded .txt transcript file.
@@ -148,7 +144,7 @@ async def notes_from_txt(
     if not transcript.strip():
         raise HTTPException(status_code=422, detail="Uploaded file is empty.")
 
-    result = generate_notes(transcript=transcript, title=title)
+    result = generate_notes(transcript=transcript, title=title, detail_level=detail_level)
 
     if result.status == "error":
         raise HTTPException(status_code=503, detail=result.error)
@@ -234,13 +230,14 @@ async def notes_stream(payload: TranscriptInput):
     """
     Generate notes from transcript with streaming response.
     Returns text/plain stream for real-time token display.
-    
+
     Request body:
         {
             "transcript": "<raw transcript text>",
-            "title": "<optional video title>"
+            "title": "<optional video title>",
+            "detail_level": <1-10>         // optional, defaults to 5
         }
-    
+
     Returns:
         StreamingResponse with text chunks as they're generated.
     """
@@ -250,7 +247,8 @@ async def notes_stream(payload: TranscriptInput):
     def stream_generator():
         for chunk in generate_notes_stream(
             transcript=payload.transcript,
-            title=payload.title or "Untitled Video"
+            title=payload.title or "Untitled Video",
+            detail_level=payload.detail_level,
         ):
             yield chunk
 
@@ -270,7 +268,8 @@ async def notes_stream(payload: TranscriptInput):
 @router.post("/from-session/{session_id}", response_model=NotesResponse)
 def notes_from_session(
     session_id: str,
-    title: Optional[str] = None
+    title: Optional[str] = None,
+    detail_level: int = 5,
 ):
     """
     Generate notes from an existing transcription session.
@@ -330,7 +329,7 @@ def notes_from_session(
     # Use provided title or fallback to video URL
     final_title = title or checkpoint.get("video_url", "Untitled Video")
     
-    notes_result = generate_notes(transcript=transcript, title=final_title)
+    notes_result = generate_notes(transcript=transcript, title=final_title, detail_level=detail_level)
     
     if notes_result.status == "error":
         raise HTTPException(status_code=503, detail=notes_result.error)
@@ -341,7 +340,8 @@ def notes_from_session(
 @router.post("/from-session/{session_id}/stream")
 def notes_from_session_stream(
     session_id: str,
-    title: Optional[str] = None
+    title: Optional[str] = None,
+    detail_level: int = 5,
 ):
     """
     Generate notes from an existing transcription session with streaming response.
@@ -394,7 +394,7 @@ def notes_from_session_stream(
     final_title = title or checkpoint.get("video_url", "Untitled Video")
     
     def stream_generator():
-        for chunk in generate_notes_stream(transcript=transcript, title=final_title):
+        for chunk in generate_notes_stream(transcript=transcript, title=final_title, detail_level=detail_level):
             yield chunk
     
     return StreamingResponse(

@@ -233,7 +233,75 @@
 
 .tab-actions {
   display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Detail Level Slider */
+.detail-slider-wrapper {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.detail-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.detail-value {
+  font-weight: 600;
+  color: var(--accent-primary);
+  min-width: 1.5ch;
+}
+
+.detail-desc {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.detail-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.detail-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.detail-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.detail-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+  border: none;
+}
+
+.detail-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .action-btn {

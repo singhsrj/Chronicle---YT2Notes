@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Youtube, Play, FileText, Loader2, Copy, Check, RefreshCw, Hash } from 'lucide-react';
 import { NotesRenderer } from '../NotesRenderer';
-import { useSession } from '../../context';
-import { useTranscription, useNotesGeneration } from '../../hooks';
+import { useSession } from '../../context/SessionContext';
+import { useTranscription, useNotesGeneration } from '../../context/hooks';
 import './MainContent.css';
 
 type InputMode = 'youtube' | 'session';
@@ -17,6 +17,7 @@ export function MainContent() {
   const [inputMode, setInputMode] = useState<InputMode>('youtube');
   const [activeTab, setActiveTab] = useState<'transcript' | 'notes'>('transcript');
   const [copied, setCopied] = useState(false);
+  const [detailLevel, setDetailLevel] = useState(5);
 
   const session = getActiveSession();
 
@@ -57,7 +58,7 @@ export function MainContent() {
 
   const handleGenerateNotes = async () => {
     if (!session.transcript) return;
-    await generateNotes(session.id, session.transcript, session.title);
+    await generateNotes(session.id, session.transcript, session.title, detailLevel);
     setActiveTab('notes');
   };
 
@@ -68,7 +69,7 @@ export function MainContent() {
       title: `Session: ${backendSessionId.slice(0, 8)}...`
     });
     
-    await generateNotesFromBackendSession(session.id, backendSessionId, session.title);
+    await generateNotesFromBackendSession(session.id, backendSessionId, session.title, detailLevel);
     setActiveTab('notes');
   };
 
@@ -209,6 +210,31 @@ export function MainContent() {
             </div>
 
             <div className="tab-actions">
+              {activeTab === 'transcript' && session.transcript && (
+                <div className="detail-slider-wrapper">
+                  <label className="detail-label" htmlFor="detail-slider">
+                    Detail: <span className="detail-value">{detailLevel}</span>
+                    <span className="detail-desc">{
+                      detailLevel <= 2 ? '• Brief' :
+                      detailLevel <= 4 ? '• Standard' :
+                      detailLevel <= 6 ? '• Detailed' :
+                      detailLevel <= 8 ? '• Comprehensive' :
+                      '• Ultra-detailed'
+                    }</span>
+                  </label>
+                  <input
+                    id="detail-slider"
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={detailLevel}
+                    onChange={(e) => setDetailLevel(Number(e.target.value))}
+                    className="detail-slider"
+                    disabled={isGenerating}
+                  />
+                </div>
+              )}
+
               {activeTab === 'transcript' && session.transcript && (
                 <button
                   className="action-btn primary"

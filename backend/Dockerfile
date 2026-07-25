@@ -28,7 +28,7 @@ RUN mkdir -p sessions
 
 # Environment variables with defaults
 ENV OLLAMA_BASE_URL=http://host.docker.internal:11434
-ENV OLLAMA_MODEL=llama2:7b
+ENV OLLAMA_MODEL=gpt-oss:120b-cloud
 ENV PYTHONUNBUFFERED=1
 
 # Expose port

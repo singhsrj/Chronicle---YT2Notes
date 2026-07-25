@@ -3,7 +3,7 @@
 #
 # Prerequisites:
 #   1. Ollama running on your host machine (ollama serve)
-#   2. Required model pulled (ollama pull llama2:7b)
+#   2. Required model pulled (ollama pull gpt-oss:120b-cloud)
 #
 # Usage:
 #   docker-compose up --build
@@ -27,7 +27,7 @@ services:
       # Use host.docker.internal on Windows/Mac
       # Use 172.17.0.1 on Linux (or set OLLAMA_HOST env var)
       - OLLAMA_BASE_URL=${OLLAMA_HOST:-http://host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2:7b}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gpt-oss:120b-cloud}
     volumes:
       # Persist transcription sessions
       - ./sessions:/app/sessions

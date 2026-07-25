@@ -2,7 +2,7 @@
 # User docker-compose file (pulls from Docker Hub)
 #
 # Usage:
-#   1. Make sure Ollama is running with a model: ollama pull llama2:7b && ollama serve
+#   1. Make sure Ollama is running with a model: ollama pull gpt-oss:120b-cloud && ollama serve
 #   2. Run: docker-compose -f docker-compose.hub.yml up
 #   3. Open: http://localhost:3000
 #
@@ -18,7 +18,7 @@ services:
       # Windows/Mac: host.docker.internal works
       # Linux: Change to http://172.17.0.1:11434 or your host IP
       - OLLAMA_BASE_URL=${OLLAMA_HOST:-http://host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2:7b}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gpt-oss:120b-cloud}
     volumes:
       - chronicle-sessions:/app/sessions
     extra_hosts:
