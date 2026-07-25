@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Youtube, Play, FileText, Loader2, Copy, Check, RefreshCw, Hash } from 'lucide-react';
+import { Youtube, Play, FileText, Loader2, Copy, Check, RefreshCw, Hash, Download, ChevronDown, Globe } from 'lucide-react';
 import { NotesRenderer } from '../NotesRenderer';
 import { useSession } from '../../context/SessionContext';
 import { useTranscription, useNotesGeneration } from '../../context/hooks';
+import { notesApi } from '../../services';
 import './MainContent.css';
 
 type InputMode = 'youtube' | 'session';
@@ -18,6 +19,19 @@ export function MainContent() {
   const [activeTab, setActiveTab] = useState<'transcript' | 'notes'>('transcript');
   const [copied, setCopied] = useState(false);
   const [detailLevel, setDetailLevel] = useState(5);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (!target.closest('.export-wrapper')) setShowExportMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showExportMenu]);
 
   const session = getActiveSession();
 
@@ -73,10 +87,32 @@ export function MainContent() {
     setActiveTab('notes');
   };
 
-  const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExport = async (fmt: 'pdf' | 'html' | 'docx' | 'md') => {
+    const notes = displayNotes;
+    if (!notes) return;
+    setShowExportMenu(false);
+    setExporting(true);
+    try {
+      const blob = await notesApi.exportNotes(notes, session.title || 'Chronicle Notes', fmt);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(session.title || 'chronicle-notes').replace(/[^\w\s\-_]/g, '').replace(/\s+/g, '_')}.${fmt}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const isValidYoutubeUrl = (url: string) => {
@@ -253,6 +289,37 @@ export function MainContent() {
                     </>
                   )}
                 </button>
+              )}
+
+              {activeTab === 'notes' && displayNotes && (
+                <div className="export-wrapper">
+                  <button
+                    className="action-btn"
+                    onClick={() => setShowExportMenu((v) => !v)}
+                    disabled={exporting}
+                    title="Export notes"
+                  >
+                    <Download size={16} />
+                    {exporting ? 'Exporting…' : 'Export'}
+                    <ChevronDown size={12} />
+                  </button>
+                  {showExportMenu && (
+                    <div className="export-menu">
+                      <button className="export-menu-item" onClick={() => handleExport('md')}>
+                        <FileText size={14} /> Markdown (.md)
+                      </button>
+                      <button className="export-menu-item" onClick={() => handleExport('html')}>
+                        <Globe size={14} /> HTML (.html)
+                      </button>
+                      <button className="export-menu-item" onClick={() => handleExport('docx')}>
+                        <FileText size={14} /> Word (.docx)
+                      </button>
+                      <button className="export-menu-item" onClick={() => handleExport('pdf')}>
+                        <FileText size={14} /> PDF (.pdf)
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
               <button

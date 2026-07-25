@@ -107,6 +107,25 @@ export const notesApi = {
   },
 
   /**
+   * Export notes in the specified format.
+   * Returns the raw file bytes for the browser to download.
+   */
+  async exportNotes(notes: string, title: string, fmt: 'pdf' | 'html' | 'docx' | 'md'): Promise<Blob> {
+    const response = await fetch(`${API_BASE}/notes/export?fmt=${fmt}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes, title }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Export failed');
+    }
+
+    return response.blob();
+  },
+
+  /**
    * Generate notes with streaming support
    * Returns an async generator for streaming chunks
    */

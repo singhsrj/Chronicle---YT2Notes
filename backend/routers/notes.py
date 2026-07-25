@@ -12,17 +12,18 @@ Mount in main.py with:
     from backend.routers.notes import router as notes_router
     app.include_router(notes_router, prefix="/notes", tags=["Notes"])
 """
-
+import re
 import os
 import json
 import requests
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from fastapi.responses import JSONResponse, StreamingResponse
-from typing import Optional
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Body, Request, Query
+from fastapi.responses import JSONResponse, StreamingResponse, Response
+from typing import Optional, Literal
 
 from backend.models.notes import TranscriptInput, NotesResponse
 from backend.services.notes_service import generate_notes, generate_notes_stream
+from backend.services.export_service import export_notes
 from backend.services.long_video_service import LongVideoTranscriptionService
 
 # Session service for loading transcripts
@@ -439,3 +440,50 @@ def list_available_sessions():
                 })
     
     return {"sessions": completed_sessions}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ENDPOINT 6 — Export notes in various formats
+# ─────────────────────────────────────────────────────────────────────────────
+@router.post("/export")
+async def export_notes_endpoint(
+    request: Request,
+    fmt: Literal["pdf", "html", "docx", "md"] = Query(..., description="Export format"),
+):
+    """
+    Export notes in PDF, HTML, DOCX, or Markdown.
+
+    Request body (JSON):
+        {
+            "notes": "...markdown notes...",
+            "title": "...document title..."
+        }
+
+    Returns a binary file download with the appropriate Content-Disposition header.
+    """
+    body = await request.json()
+    notes_md = body.get("notes", "")
+    title = body.get("title", "Chronicle Notes")
+
+    if not notes_md.strip():
+        raise HTTPException(status_code=422, detail="Notes cannot be empty.")
+
+    try:
+        file_bytes, mime_type, extension = export_notes(notes_md, title, fmt)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+    # Sanitize title for filename
+    safe_title = re.sub(r"[^\w\s\-_]", "", title)[:50].strip().replace(" ", "_")
+    filename = f"{safe_title}.{extension}"
+
+    return Response(
+        content=file_bytes,
+        media_type=mime_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(file_bytes)),
+        },
+    )

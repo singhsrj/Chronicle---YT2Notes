@@ -9,6 +9,11 @@ python-multipart>=0.0.6
 
 # LangChain for structured LLM interactions
 langchain
-langchain-ollama 
-langgraph 
+langchain-ollama
+langgraph
 langchain-core
+
+# Export service
+markdown>=3.7
+python-docx>=1.1.0
+weasyprint  # PDF via HTML→PDF (also needs system packages added to Dockerfile)
